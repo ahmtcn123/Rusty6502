@@ -1,4 +1,6 @@
 # Rusty6502
+[![Crates.io Version](https://img.shields.io/crates/v/rusty_6502?logo=rust)](https://crates.io/crates/rusty_6502)
+[![Documentation](https://docs.rs/rusty_6502/badge.svg)](https://docs.rs/rusty_6502)
 A 6502 emulator written in Rust.
 
 Created for understanding the 6502 architecture and assembly. You can see the progress [here](./todo.md), when all the instructions are implemented more examples will show up. My goal is implement all the instructions and create a hybrid platform that can work with too many different platforms. 6502 assembly is easy and fun to learn, planed hybrid platform can help other developers to learn how cpu works.
