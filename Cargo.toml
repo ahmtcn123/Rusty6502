@@ -1,7 +1,12 @@
 [package]
 name = "rusty_6502"
-version = "0.1.0"
-edition = "2018"
+version = "0.1.0-alpha"
+edition = "2021"
+description = " A rusty 6502 emulator "
+authors = ["Ahmetcan Aksu"]
+categories = ["emulators"]
+keywords = ["6502", "emulator", "assembly"]
+readme = "README.md"
 license-file = "LICENSE"
 documentation = "https://docs.rs/rusty_6502"
 repository = "https://github.com/ahmtcn123/Rusty6502"
