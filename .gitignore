@@ -2,6 +2,6 @@
 /.vs
 /.vscode
 docs
-./mem.dump
+mem.dump
 Cargo.lock
 etests

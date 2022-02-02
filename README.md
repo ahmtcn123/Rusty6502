@@ -4,9 +4,9 @@
 
 A 6502 emulator written in Rust.
 
-Created for understanding the 6502 architecture and assembly. You can see the progress [here](./todo.md), when all the instructions are implemented more examples will show up. My goal is implement all the instructions and create a hybrid platform that can work with too many different platforms. 6502 assembly is easy and fun to learn, planed hybrid platform can help other developers to learn how cpu works.
+Created for understanding the 6502 architecture and assembly. You can see the progress [here](https://github.com/ahmtcn123/Rusty6502/issues/1), when all the instructions are implemented more examples will show up. My goal is implement all the instructions and create a hybrid platform that can work with too many different platforms. 6502 assembly is easy and fun to learn, planed hybrid platform can help other developers to learn how cpu works.
 
-### Virtual console
+### Virtual console (Not Complete)
 
 This repo has a virtual console that can be used to test the emulator. You can find it [here](./src/bin/romodore.md).
 

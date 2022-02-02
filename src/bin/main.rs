@@ -24,7 +24,7 @@ fn main() {
     cpu.reset(600, &mut mem);
 
     rusty_6502::asm::Program::new(600)
-        .get_from_str("a2 01 a9 01 85 00 a9 02 85 01 a0 0a 8c 02 01 91 00")
+        .get_from_str("a2 01 a0 03 8c 02 02 de 01 02")
         .fill_ram(&mut mem);
 
     let (cycles, end) = cpu.execute_continuous(&mut mem);

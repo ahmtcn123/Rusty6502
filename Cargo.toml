@@ -1,6 +1,6 @@
 [package]
 name = "rusty_6502"
-version = "0.1.0-alpha"
+version = "0.2.0-alpha"
 edition = "2021"
 description = " A rusty 6502 emulator "
 authors = ["Ahmetcan Aksu"]
