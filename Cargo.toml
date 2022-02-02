@@ -1,0 +1,10 @@
+[package]
+name = "rusty_6502"
+version = "0.1.0"
+edition = "2018"
+license-file = "LICENSE"
+documentation = "https://docs.rs/rusty_6502"
+repository = "https://github.com/ahmtcn123/Rusty6502"
+
+[dependencies]
+# None :)
