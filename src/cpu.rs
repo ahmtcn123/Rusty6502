@@ -74,6 +74,12 @@ pub struct CPU<E> {
     pub step: Step,
     /// Debugger bridge
     pub messenger: Debugger<E>,
+
+    /// IRQ - Interrupt Request Flag
+    irq: bool,
+
+    /// NMI - Non-Maskable Interrupt Flag
+    nmi: bool,
 }
 
 impl<E> CPU<E>
@@ -114,6 +120,8 @@ where
             Y: 0,
             step: Step::Unsupervised,
             messenger: Debugger::new(messenger),
+            irq: false,
+            nmi: false,
         }
     }
 
@@ -275,6 +283,16 @@ where
         loop {
             let (instruction, consumed, complete) = self.execute_instruction(&mut 9, mem);
             consumed_cycles += consumed as usize;
+
+            //If the IRQ flag is set and the interrupt flag is not set, clear the IRQ flag
+            if self.irq && self.status_flags.I == 0 {
+                todo!("Interrupt requests are not implemented");
+                self.irq = false;
+            } else if self.nmi {
+                todo!("Non-maskable interrupts are not implemented");
+                self.nmi = false;
+            }
+
             self.emit_debugger(MessageType::LineExecuted(instruction, consumed));
             if complete {
                 break;
@@ -513,6 +531,10 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::JMP(address_mode) => match address_mode {
+                AddrMode::Absolute(_) => {
+                    let address = self.fetch_word(cycles, mem);
+                    self.PC = address;
+                }
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::JSR(address_mode) => match address_mode {
@@ -824,6 +846,24 @@ where
                 }
                 _ => panic!("Wrong addressing mode"),
             },
+            Instructions::BNE(address_mode) => match address_mode {
+                AddrMode::Relative(_) => {
+                    let offset = self.fetch_byte(cycles, mem);
+                    if self.status_flags.Z == 0 {
+                        self.PC = self.PC.wrapping_add(offset as u16);
+                    }
+                }
+                _ => panic!("Wrong addressing mode"),
+            },
+            Instructions::BEQ(address_mode) => match address_mode {
+                AddrMode::Relative(_) => {
+                    let offset = self.fetch_byte(cycles, mem);
+                    if self.status_flags.Z == 1 {
+                        self.PC = self.PC.wrapping_add(offset as u16);
+                    }
+                }
+                _ => panic!("Wrong addressing mode"),
+            }, 
             _ => {
                 File::create("mem.dump")
                     .unwrap()
@@ -838,5 +878,13 @@ where
             }
         }
         (instruction, old_cycles - *cycles, complete)
+    }
+
+    pub fn set_irq_high(&mut self) {
+        self.irq = true;
+    }
+
+    pub fn set_nmi_high(&mut self) {
+        self.nmi = true;
     }
 }

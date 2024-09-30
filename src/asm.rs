@@ -1,4 +1,4 @@
-use std::{env, fmt::Display};
+use std::{env, fmt::Display, thread::Scope};
 
 /// Address code
 #[derive(Debug, PartialEq)]
@@ -867,6 +867,11 @@ impl Instructions {
     }
 }
 
+pub enum AssemblerError {
+    NestedScopesAreNotAllowed,
+    InvalidScopeName,
+}
+
 /// A program structure
 #[derive(Debug)]
 pub struct Program {
@@ -927,14 +932,51 @@ impl Program {
     }
 
     /// Parse the program from given string
-    pub fn parse_assembly_string(code: &str) {
+    pub fn parse_assembly_string(code: &str) -> Result<(), AssemblerError> {
         let mut scope = "";
-        let in_scope = true;
+        let mut in_scope = true;
+
         //split lines with eol
-        let lines = code.split(if code.contains("\r\n") { "\r\n" } else { "\n" });
+        let lines = code.lines();
+
+        println!("lines: {:?}", lines.clone().collect::<Vec<_>>());
+
 
         for line in lines {
+
             println!("line: {:?}", line);
+
+            if line.starts_with("    ") || line.starts_with("\t") {
+                todo!("#: {:?}", line);
+            } else {
+                //Scope line
+                if line.contains(":") {
+                    if in_scope {
+                        return Err(AssemblerError::NestedScopesAreNotAllowed);
+                    } else {
+                        let mut scope_parts = line.trim().split(":");
+
+                        if scope_parts.clone().count() > 2 {
+                            return Err(AssemblerError::InvalidScopeName);
+                        }
+
+                        let scope_text = scope_parts.next().unwrap();
+
+                        let allowed_scope_chars =
+                            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
+
+                        if scope_text.chars().all(|c| allowed_scope_chars.contains(c)) {
+                            scope = &scope_text;
+                            in_scope = true;
+                        } else {
+                            return Err(AssemblerError::InvalidScopeName);
+                        }
+                    }
+                }
+            }
         }
+
+        panic!("Not implemented");
+        Ok(())
     }
 }

@@ -27,16 +27,9 @@ fn main() {
 
     cpu.reset(600, &mut mem);
 
-    let mut file_str = String::new();
-
-    let mut file = fs::File::open("./test.asm").unwrap();
-
-    file.read_to_string(&mut file_str);
-
-    Program::parse_assembly_string(&file_str);
 
     Program::new(600)
-        .get_from_str("A2 00 E8 E0 0A D0 FB 00")
+        .get_from_str("A2 05 E0 03 F0 05 A9 01 4C 0D 06 A9 00 00")
         .fill_ram(&mut mem);
 
     let (cycles, end) = cpu.execute_continuous(&mut mem);
