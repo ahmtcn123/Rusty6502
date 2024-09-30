@@ -2,7 +2,7 @@
 use std::{fs::File, io::Write};
 
 use crate::{
-    asm::Instructions,
+    asm::{AddrMode, Instructions},
     debugger::{Debugger, MessageType},
     mem::MEM,
 };
@@ -291,7 +291,7 @@ where
         let mut complete = false;
         match resolved_instruction {
             Instructions::BRK(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.status_flags.I = 1;
                     self.push_word_to_stack(cycles, mem, self.PC + 2);
                     self.push_byte_to_stack(cycles, mem, self.SR);
@@ -310,28 +310,28 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::CLC(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.status_flags.C = 0;
                     *cycles -= 1;
                 }
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::CLD(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.status_flags.D = 0;
                     *cycles -= 1;
                 }
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::CLI(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.status_flags.I = 0;
                     *cycles -= 1;
                 }
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::CLV(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.status_flags.V = 0;
                     *cycles -= 1;
                 }
@@ -341,13 +341,28 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::CPX(address_mode) => match address_mode {
+                AddrMode::Immediate(_) => {
+                    let data = self.fetch_byte(cycles, mem);
+                    self.status_flags.Z = if self.X == data { 1 } else { 0 };
+                    self.status_flags.C = if self.X >= data { 1 } else { 0 };
+                    self.status_flags.N = if (self.X as i8) > 0 { 1 } else { 0 };
+                }
+                AddrMode::ZeroPage(_) => {
+                    let address = self.fetch_byte(cycles, mem);
+                    let value = self.read_byte(cycles, mem, address as u16);
+                    self.status_flags.Z = if self.X == value { 1 } else { 0 };
+                    self.status_flags.C = if self.X >= value { 1 } else { 0 };
+                    self.status_flags.N = if (self.X as i8) > 0 { 1 } else { 0 };
+                    *cycles -= 1;
+                }
+                AddrMode::Absolute(_) => todo!(),
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::CPY(address_mode) => match address_mode {
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::DEC(address_mode) => match address_mode {
-                crate::asm::AddrMode::ZeroPage(_) => {
+                AddrMode::ZeroPage(_) => {
                     let address = self.fetch_byte(cycles, mem);
                     let value = self.read_byte(cycles, mem, address as u16);
                     self.write_byte(
@@ -360,7 +375,7 @@ where
                     self.status_flags.N = if (value & 0b10000000) > 0 { 1 } else { 0 };
                     *cycles -= 1;
                 }
-                crate::asm::AddrMode::ZeroPageX(_) => {
+                AddrMode::ZeroPageX(_) => {
                     let address = self.fetch_byte(cycles, mem) + self.X;
                     let value = self.read_byte(cycles, mem, address as u16);
                     self.write_byte(
@@ -373,7 +388,7 @@ where
                     self.status_flags.N = if (value & 0b10000000) > 0 { 1 } else { 0 };
                     *cycles -= 2;
                 }
-                crate::asm::AddrMode::Absolute(_) => {
+                AddrMode::Absolute(_) => {
                     let address = self.fetch_word(cycles, mem);
                     let value = self.read_byte(cycles, mem, address as u16);
                     self.write_byte(
@@ -386,7 +401,7 @@ where
                     self.status_flags.N = if (value & 0b10000000) > 0 { 1 } else { 0 };
                     *cycles -= 2;
                 }
-                crate::asm::AddrMode::AbsoluteX(_) => {
+                AddrMode::AbsoluteX(_) => {
                     let mut address = self.fetch_word(cycles, mem);
                     address += self.X as u16;
                     let value = self.read_byte(cycles, mem, address as u16);
@@ -403,7 +418,7 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::DEX(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.X = if self.X == 0 { 255 } else { self.X - 1 };
                     self.status_flags.Z = if self.X == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.X & 0b10000000) > 0 { 1 } else { 0 };
@@ -412,7 +427,7 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::DEY(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.Y = if self.Y == 0 { 255 } else { self.Y - 1 };
                     self.status_flags.Z = if self.Y == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.Y & 0b10000000) > 0 { 1 } else { 0 };
@@ -424,7 +439,7 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::INC(address_mode) => match address_mode {
-                crate::asm::AddrMode::ZeroPage(_) => {
+                AddrMode::ZeroPage(_) => {
                     let address = self.fetch_byte(cycles, mem);
                     let value = self.read_byte(cycles, mem, address as u16);
                     self.write_byte(
@@ -437,7 +452,7 @@ where
                     self.status_flags.N = if (value & 0b10000000) > 0 { 1 } else { 0 };
                     *cycles -= 1;
                 }
-                crate::asm::AddrMode::ZeroPageX(_) => {
+                AddrMode::ZeroPageX(_) => {
                     let address = self.fetch_byte(cycles, mem) + self.X;
                     let value = self.read_byte(cycles, mem, address as u16);
                     self.write_byte(
@@ -450,7 +465,7 @@ where
                     self.status_flags.N = if (value & 0b10000000) > 0 { 1 } else { 0 };
                     *cycles -= 2;
                 }
-                crate::asm::AddrMode::Absolute(_) => {
+                AddrMode::Absolute(_) => {
                     let address = self.fetch_word(cycles, mem);
                     let value = self.read_byte(cycles, mem, address as u16);
                     self.write_byte(
@@ -463,7 +478,7 @@ where
                     self.status_flags.N = if (value & 0b10000000) > 0 { 1 } else { 0 };
                     *cycles -= 2;
                 }
-                crate::asm::AddrMode::AbsoluteX(_) => {
+                AddrMode::AbsoluteX(_) => {
                     let mut address = self.fetch_word(cycles, mem);
                     address += self.X as u16;
                     let value = self.read_byte(cycles, mem, address as u16);
@@ -480,7 +495,7 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::INX(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.X = if self.X == 255 { 0 } else { self.X + 1 };
                     self.status_flags.Z = if self.X == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.X & 0b10000000) > 0 { 1 } else { 0 };
@@ -489,7 +504,7 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::INY(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.Y = if self.Y == 255 { 0 } else { self.Y + 1 };
                     self.status_flags.Z = if self.Y == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.Y & 0b10000000) > 0 { 1 } else { 0 };
@@ -505,17 +520,17 @@ where
             },
             Instructions::LDX(address_mode) => {
                 match address_mode {
-                    crate::asm::AddrMode::Immediate(_) => {
+                    AddrMode::Immediate(_) => {
                         let data = self.fetch_byte(cycles, mem);
                         self.X = data;
                     }
-                    crate::asm::AddrMode::ZeroPage(_) => {
+                    AddrMode::ZeroPage(_) => {
                         //Acquire the address
                         let memory_location = self.fetch_byte(cycles, mem);
                         //Read given address
                         self.X = self.read_byte(cycles, mem, memory_location.into());
                     }
-                    crate::asm::AddrMode::ZeroPageY(_) => {
+                    AddrMode::ZeroPageY(_) => {
                         //Acquire the address
                         let mut memory_location = self.fetch_byte(cycles, mem);
                         memory_location += self.Y;
@@ -523,11 +538,11 @@ where
                         self.X = self.read_byte(cycles, mem, memory_location.into());
                         *cycles -= 1;
                     }
-                    crate::asm::AddrMode::Absolute(_) => {
+                    AddrMode::Absolute(_) => {
                         let address = self.fetch_word(cycles, mem);
                         self.X = self.read_byte(cycles, mem, address);
                     }
-                    crate::asm::AddrMode::AbsoluteY(_) => {
+                    AddrMode::AbsoluteY(_) => {
                         let mut address = self.fetch_word(cycles, mem);
                         address += self.Y as u16;
                         self.X = self.read_byte(cycles, mem, address);
@@ -540,38 +555,38 @@ where
             }
             Instructions::LDA(address_mode) => {
                 match address_mode {
-                    crate::asm::AddrMode::Immediate(_) => {
+                    AddrMode::Immediate(_) => {
                         let data = self.fetch_byte(cycles, mem);
                         self.A = data;
                     }
-                    crate::asm::AddrMode::ZeroPage(_) => {
+                    AddrMode::ZeroPage(_) => {
                         //Acquire the address
                         let memory_location = self.fetch_byte(cycles, mem);
                         //Read given address
                         self.A = self.read_byte(cycles, mem, memory_location.into());
                     }
-                    crate::asm::AddrMode::ZeroPageX(_) => {
+                    AddrMode::ZeroPageX(_) => {
                         //Acquire first parameter
                         let first_param = self.fetch_byte(cycles, mem);
                         //Read given address
                         self.A = self.read_byte(cycles, mem, (first_param + self.X).into());
                         *cycles -= 1;
                     }
-                    crate::asm::AddrMode::Absolute(_) => {
+                    AddrMode::Absolute(_) => {
                         let address = self.fetch_word(cycles, mem);
                         self.A = self.read_byte(cycles, mem, address);
                     }
-                    crate::asm::AddrMode::AbsoluteX(_) => {
+                    AddrMode::AbsoluteX(_) => {
                         let mut address = self.fetch_word(cycles, mem);
                         address += self.X as u16;
                         self.A = self.read_byte(cycles, mem, address);
                     }
-                    crate::asm::AddrMode::AbsoluteY(_) => {
+                    AddrMode::AbsoluteY(_) => {
                         let mut address = self.fetch_word(cycles, mem);
                         address += self.Y as u16;
                         self.A = self.read_byte(cycles, mem, address);
                     }
-                    crate::asm::AddrMode::IndirectX(_) => {
+                    AddrMode::IndirectX(_) => {
                         let mut address = self.fetch_word(cycles, mem);
                         address += self.X as u16;
                         let low = self.read_byte(cycles, mem, address);
@@ -579,7 +594,7 @@ where
                         let new_address = (high as u16) << 8 | (low as u16);
                         self.A = self.read_byte(cycles, mem, new_address);
                     }
-                    crate::asm::AddrMode::IndirectY(_) => {
+                    AddrMode::IndirectY(_) => {
                         let address = self.fetch_word(cycles, mem);
                         let low = self.read_byte(cycles, mem, address);
                         let high = self.read_byte(cycles, mem, address + 1);
@@ -594,28 +609,28 @@ where
             }
             Instructions::LDY(address_mode) => {
                 match address_mode {
-                    crate::asm::AddrMode::Immediate(_) => {
+                    AddrMode::Immediate(_) => {
                         let data = self.fetch_byte(cycles, mem);
                         self.Y = data;
                     }
-                    crate::asm::AddrMode::ZeroPage(_) => {
+                    AddrMode::ZeroPage(_) => {
                         //Acquire the address
                         let memory_location = self.fetch_byte(cycles, mem);
                         //Read given address
                         self.Y = self.read_byte(cycles, mem, memory_location.into());
                     }
-                    crate::asm::AddrMode::ZeroPageX(_) => {
+                    AddrMode::ZeroPageX(_) => {
                         //Acquire the address
                         let mut memory_location = self.fetch_byte(cycles, mem);
                         memory_location += self.X;
                         //Read given address
                         self.Y = self.read_byte(cycles, mem, memory_location.into());
                     }
-                    crate::asm::AddrMode::Absolute(_) => {
+                    AddrMode::Absolute(_) => {
                         let address = self.fetch_word(cycles, mem);
                         self.Y = self.read_byte(cycles, mem, address);
                     }
-                    crate::asm::AddrMode::AbsoluteX(_) => {
+                    AddrMode::AbsoluteX(_) => {
                         let mut address = self.fetch_word(cycles, mem);
                         address += self.X as u16;
                         self.Y = self.read_byte(cycles, mem, address);
@@ -663,51 +678,51 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::SEC(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.status_flags.C = 1;
                     *cycles -= 1;
                 }
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::SED(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.status_flags.D = 1;
                     *cycles -= 1;
                 }
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::SEI(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.status_flags.I = 1;
                     *cycles -= 1;
                 }
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::STA(address_mode) => match address_mode {
-                crate::asm::AddrMode::ZeroPage(_) => {
+                AddrMode::ZeroPage(_) => {
                     let address = self.fetch_byte(cycles, mem);
                     self.write_byte(cycles, mem, address as u16, self.A);
                 }
-                crate::asm::AddrMode::ZeroPageX(_) => {
+                AddrMode::ZeroPageX(_) => {
                     let mut address = self.fetch_byte(cycles, mem);
                     address += self.X;
                     self.write_byte(cycles, mem, address as u16, self.A);
                 }
-                crate::asm::AddrMode::Absolute(_) => {
+                AddrMode::Absolute(_) => {
                     let address = self.fetch_word(cycles, mem);
                     self.write_byte(cycles, mem, address, self.A)
                 }
-                crate::asm::AddrMode::AbsoluteX(_) => {
+                AddrMode::AbsoluteX(_) => {
                     let mut address = self.fetch_word(cycles, mem);
                     address += self.X as u16;
                     self.write_byte(cycles, mem, address, self.A);
                 }
-                crate::asm::AddrMode::AbsoluteY(_) => {
+                AddrMode::AbsoluteY(_) => {
                     let mut address = self.fetch_word(cycles, mem);
                     address += self.Y as u16;
                     self.write_byte(cycles, mem, address, self.A);
                 }
-                crate::asm::AddrMode::IndirectX(_) => {
+                AddrMode::IndirectX(_) => {
                     let mut address = self.fetch_word(cycles, mem);
                     address += self.X as u16;
                     let low = self.read_byte(cycles, mem, address);
@@ -715,7 +730,7 @@ where
                     let new_address = (high as u16) << 8 | (low as u16);
                     self.write_byte(cycles, mem, new_address, self.A);
                 }
-                crate::asm::AddrMode::IndirectY(_) => {
+                AddrMode::IndirectY(_) => {
                     let address = self.fetch_word(cycles, mem);
                     let low = self.read_byte(cycles, mem, address);
                     let high = self.read_byte(cycles, mem, address + 1);
@@ -725,40 +740,40 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::STX(address_mode) => match address_mode {
-                crate::asm::AddrMode::ZeroPage(_) => {
+                AddrMode::ZeroPage(_) => {
                     let address = self.fetch_byte(cycles, mem);
                     self.write_byte(cycles, mem, address as u16, self.X);
                 }
-                crate::asm::AddrMode::ZeroPageY(_) => {
+                AddrMode::ZeroPageY(_) => {
                     let mut address = self.fetch_byte(cycles, mem);
                     address += self.Y;
                     self.write_byte(cycles, mem, address as u16, self.X);
                     *cycles -= 1;
                 }
-                crate::asm::AddrMode::Absolute(_) => {
+                AddrMode::Absolute(_) => {
                     let address = self.fetch_word(cycles, mem);
                     self.write_byte(cycles, mem, address as u16, self.X);
                 }
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::STY(address_mode) => match address_mode {
-                crate::asm::AddrMode::ZeroPage(_) => {
+                AddrMode::ZeroPage(_) => {
                     let address = self.fetch_byte(cycles, mem);
                     self.write_byte(cycles, mem, address as u16, self.Y);
                 }
-                crate::asm::AddrMode::ZeroPageX(_) => {
+                AddrMode::ZeroPageX(_) => {
                     let mut address = self.fetch_byte(cycles, mem);
                     address += self.X;
                     self.write_byte(cycles, mem, address as u16, self.Y);
                 }
-                crate::asm::AddrMode::Absolute(_) => {
+                AddrMode::Absolute(_) => {
                     let address = self.fetch_word(cycles, mem);
                     self.write_byte(cycles, mem, address as u16, self.Y);
                 }
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::TAX(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.X = self.A;
                     self.status_flags.Z = if self.X == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.X & 0b10000000) > 0 { 1 } else { 0 };
@@ -767,7 +782,7 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::TAY(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.Y = self.A;
                     self.status_flags.Z = if self.Y == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.Y & 0b10000000) > 0 { 1 } else { 0 };
@@ -776,7 +791,7 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::TSX(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.X = self.SP;
                     self.status_flags.Z = if self.X == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.X & 0b10000000) > 0 { 1 } else { 0 };
@@ -785,7 +800,7 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::TXA(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.A = self.X;
                     self.status_flags.Z = if self.A == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.A & 0b10000000) > 0 { 1 } else { 0 };
@@ -794,14 +809,14 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::TXS(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.SP = self.X;
                     *cycles -= 1;
                 }
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::TYA(address_mode) => match address_mode {
-                crate::asm::AddrMode::Implied(_) => {
+                AddrMode::Implied(_) => {
                     self.A = self.Y;
                     self.status_flags.Z = if self.A == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.A & 0b10000000) > 0 { 1 } else { 0 };

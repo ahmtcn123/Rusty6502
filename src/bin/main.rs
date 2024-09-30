@@ -1,8 +1,12 @@
 use rusty_6502::{
+    asm::Program,
     cpu::{self, Step},
     debugger, mem,
 };
-use std::{fs::File, io::Write};
+use std::{
+    fs::{self, File},
+    io::{Read, Write},
+};
 
 fn main() {
     let mut mem = mem::MEM::new();
@@ -23,8 +27,16 @@ fn main() {
 
     cpu.reset(600, &mut mem);
 
-    rusty_6502::asm::Program::new(600)
-        .get_from_str("a2 01 a0 03 8c 02 02 de 01 02")
+    let mut file_str = String::new();
+
+    let mut file = fs::File::open("./test.asm").unwrap();
+
+    file.read_to_string(&mut file_str);
+
+    Program::parse_assembly_string(&file_str);
+
+    Program::new(600)
+        .get_from_str("A2 00 E8 E0 0A D0 FB 00")
         .fill_ram(&mut mem);
 
     let (cycles, end) = cpu.execute_continuous(&mut mem);

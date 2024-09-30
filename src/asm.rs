@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{env, fmt::Display};
 
 /// Address code
 #[derive(Debug, PartialEq)]
@@ -868,7 +868,7 @@ impl Instructions {
 }
 
 /// A program structure
-#[derive(Debug)] 
+#[derive(Debug)]
 pub struct Program {
     /// Start address
     pub start_addr: usize,
@@ -911,7 +911,7 @@ impl Program {
     /// ```
     /// use rusty_6502::{asm, mem};
     /// let mut mem = mem::MEM::new();
-    /// let program = rusty_6502::asm::Program::new(600)
+    /// let program = asm::Program::new(600)
     /// .get_from_str("A2 01")
     /// .fill_ram(&mut mem);
     /// assert_eq!(mem[600], 0xA2);
@@ -924,5 +924,17 @@ impl Program {
                 .push(u8::from_str_radix(instruction, 16).unwrap())
         }
         self
+    }
+
+    /// Parse the program from given string
+    pub fn parse_assembly_string(code: &str) {
+        let mut scope = "";
+        let in_scope = true;
+        //split lines with eol
+        let lines = code.split(if code.contains("\r\n") { "\r\n" } else { "\n" });
+
+        for line in lines {
+            println!("line: {:?}", line);
+        }
     }
 }
