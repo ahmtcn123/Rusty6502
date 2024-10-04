@@ -65,3 +65,4 @@ pub mod mem;
 pub mod asm;
 ///Debugger
 pub mod debugger;
+pub mod parser;

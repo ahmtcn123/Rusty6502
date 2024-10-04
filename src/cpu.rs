@@ -309,7 +309,7 @@ where
         let mut complete = false;
         match resolved_instruction {
             Instructions::BRK(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.status_flags.I = 1;
                     self.push_word_to_stack(cycles, mem, self.PC + 2);
                     self.push_byte_to_stack(cycles, mem, self.SR);
@@ -328,28 +328,28 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::CLC(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.status_flags.C = 0;
                     *cycles -= 1;
                 }
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::CLD(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.status_flags.D = 0;
                     *cycles -= 1;
                 }
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::CLI(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.status_flags.I = 0;
                     *cycles -= 1;
                 }
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::CLV(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.status_flags.V = 0;
                     *cycles -= 1;
                 }
@@ -436,7 +436,7 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::DEX(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.X = if self.X == 0 { 255 } else { self.X - 1 };
                     self.status_flags.Z = if self.X == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.X & 0b10000000) > 0 { 1 } else { 0 };
@@ -445,7 +445,7 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::DEY(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.Y = if self.Y == 0 { 255 } else { self.Y - 1 };
                     self.status_flags.Z = if self.Y == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.Y & 0b10000000) > 0 { 1 } else { 0 };
@@ -513,7 +513,7 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::INX(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.X = if self.X == 255 { 0 } else { self.X + 1 };
                     self.status_flags.Z = if self.X == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.X & 0b10000000) > 0 { 1 } else { 0 };
@@ -522,7 +522,7 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::INY(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.Y = if self.Y == 255 { 0 } else { self.Y + 1 };
                     self.status_flags.Z = if self.Y == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.Y & 0b10000000) > 0 { 1 } else { 0 };
@@ -700,21 +700,21 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::SEC(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.status_flags.C = 1;
                     *cycles -= 1;
                 }
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::SED(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.status_flags.D = 1;
                     *cycles -= 1;
                 }
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::SEI(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.status_flags.I = 1;
                     *cycles -= 1;
                 }
@@ -795,7 +795,7 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::TAX(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.X = self.A;
                     self.status_flags.Z = if self.X == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.X & 0b10000000) > 0 { 1 } else { 0 };
@@ -804,7 +804,7 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::TAY(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.Y = self.A;
                     self.status_flags.Z = if self.Y == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.Y & 0b10000000) > 0 { 1 } else { 0 };
@@ -813,7 +813,7 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::TSX(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.X = self.SP;
                     self.status_flags.Z = if self.X == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.X & 0b10000000) > 0 { 1 } else { 0 };
@@ -822,7 +822,7 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::TXA(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.A = self.X;
                     self.status_flags.Z = if self.A == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.A & 0b10000000) > 0 { 1 } else { 0 };
@@ -831,14 +831,14 @@ where
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::TXS(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.SP = self.X;
                     *cycles -= 1;
                 }
                 _ => panic!("Wrong addressing mode"),
             },
             Instructions::TYA(address_mode) => match address_mode {
-                AddrMode::Implied(_) => {
+                AddrMode::Implicit(_) => {
                     self.A = self.Y;
                     self.status_flags.Z = if self.A == 0 { 1 } else { 0 };
                     self.status_flags.N = if (self.A & 0b10000000) > 0 { 1 } else { 0 };

@@ -2,6 +2,7 @@ use rusty_6502::{
     asm::Program,
     cpu::{self, Step},
     debugger, mem,
+    parser::parse_assembly_string,
 };
 use std::{
     fs::{self, File},
@@ -9,6 +10,23 @@ use std::{
 };
 
 fn main() {
+    parse_assembly_string(
+        r#"
+    .org 600
+    LDX #$00            
+    LDA #$00            
+loop_start:
+    INX                 
+    STA $01             
+    CPX #$09           
+    BNE loop_start      
+    BRK                 
+
+    "#,
+    )
+    .unwrap();
+
+    panic!();
     let mut mem = mem::MEM::new();
     let mut cpu = cpu::CPU::new(&|e| match e {
         debugger::MessageType::LineExecuted(ins, cocyl) => {
@@ -27,10 +45,16 @@ fn main() {
 
     cpu.reset(600, &mut mem);
 
-
-    Program::new(600)
-        .get_from_str("A2 05 E0 03 F0 05 A9 01 4C 0D 06 A9 00 00")
-        .fill_ram(&mut mem);
+    /*  Program::new(600)
+        .parse_assembly_string(
+            r#"
+    LDX #$00
+    LDA #$09
+    STA $01
+    BRK
+        "#,
+        )
+        .fill_ram(&mut mem); */
 
     let (cycles, end) = cpu.execute_continuous(&mut mem);
     println!("\nA: {:02x} X: {:02x} Y: {:02x}", cpu.A, cpu.X, cpu.Y);

@@ -1,4 +1,7 @@
-use std::{env, fmt::Display, thread::Scope};
+use std::{collections::HashMap, env, fmt::Display, thread::Scope};
+
+use lazy_static::lazy_static;
+use regex::Regex;
 
 /// Address code
 #[derive(Debug, PartialEq)]
@@ -7,6 +10,118 @@ pub struct AddrCode {
     pub cycles: u32,
     /// OP code
     pub opcode: u8,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum RawAddrCode {
+    /// Accumulator
+    Accumulator,
+    /// Immediate
+    Immediate(u8),
+    /// Zero Page
+    ZeroPage(u8),
+    /// Zero Page X
+    ZeroPageX(u8),
+    /// Zero Page Y
+    ZeroPageY(u8),
+    /// Absolute
+    Absolute(u16),
+    /// Absolute X
+    AbsoluteX(u16),
+    /// Absolute Y
+    AbsoluteY(u16),
+    /// Indirect
+    Indirect(u16),
+    /// Indirect X
+    IndirectX(u8),
+    /// Indirect Y
+    IndirectY(u8),
+    /// Relative
+    Relative(u8),
+    /// Implicit
+    Implicit,
+}
+
+impl RawAddrCode {
+    pub fn parse_assembly_string(s: &str) -> Option<RawAddrCode> {
+        let s = s.trim();
+
+        lazy_static! {
+            // Immediate Addressing Mode: #$01
+            static ref RE_IMMEDIATE: Regex = Regex::new(r"^#\s*\$\s*([0-9A-Fa-f]+)$").unwrap();
+
+            // Indexed Indirect Addressing Mode: ($01, X)
+            static ref RE_INDIRECT_X: Regex = Regex::new(r"^\(\s*\$\s*([0-9A-Fa-f]+)\s*,\s*X\s*\)$").unwrap();
+
+            // Indirect Indexed Addressing Mode: ($01), Y
+            static ref RE_INDIRECT_Y: Regex = Regex::new(r"^\(\s*\$\s*([0-9A-Fa-f]+)\s*\)\s*,\s*Y$").unwrap();
+
+            // Zero Page Indexed with X: $01, X
+            static ref RE_ZERO_PAGE_X: Regex = Regex::new(r"^\$\s*([0-9A-Fa-f]+)\s*,\s*X$").unwrap();
+
+            // Zero Page Indexed with Y: $01, Y
+            static ref RE_ZERO_PAGE_Y: Regex = Regex::new(r"^\$\s*([0-9A-Fa-f]+)\s*,\s*Y$").unwrap();
+
+            // Zero Page Addressing Mode: $01
+            static ref RE_ZERO_PAGE: Regex = Regex::new(r"^\$\s*([0-9A-Fa-f]{1,2})$").unwrap();
+
+            // Absolute Indexed with X: $1234, X
+            static ref RE_ABSOLUTE_X: Regex = Regex::new(r"^\$\s*([0-9A-Fa-f]{3,4})\s*,\s*X$").unwrap();
+
+            // Absolute Indexed with Y: $1234, Y
+            static ref RE_ABSOLUTE_Y: Regex = Regex::new(r"^\$\s*([0-9A-Fa-f]{3,4})\s*,\s*Y$").unwrap();
+
+            // Absolute Addressing Mode: $1234
+            static ref RE_ABSOLUTE: Regex = Regex::new(r"^\$\s*([0-9A-Fa-f]{3,4})$").unwrap();
+
+            // Indirect Addressing Mode: ($1234)
+            static ref RE_INDIRECT: Regex = Regex::new(r"^\(\s*\$\s*([0-9A-Fa-f]{3,4})\s*\)$").unwrap();
+
+            // Accumulator Addressing Mode: A
+            static ref RE_ACCUMULATOR: Regex = Regex::new(r"^A$").unwrap();
+
+            // Implicit Addressing Mode: (no operand)
+            static ref RE_IMPLICIT: Regex = Regex::new(r"^$").unwrap();
+        }
+
+        if let Some(caps) = RE_IMMEDIATE.captures(s) {
+            let value = u8::from_str_radix(&caps[1], 16).ok()?;
+            Some(RawAddrCode::Immediate(value))
+        } else if let Some(caps) = RE_INDIRECT_X.captures(s) {
+            let value = u8::from_str_radix(&caps[1], 16).ok()?;
+            Some(RawAddrCode::IndirectX(value))
+        } else if let Some(caps) = RE_INDIRECT_Y.captures(s) {
+            let value = u8::from_str_radix(&caps[1], 16).ok()?;
+            Some(RawAddrCode::IndirectY(value))
+        } else if let Some(caps) = RE_ZERO_PAGE_X.captures(s) {
+            let value = u8::from_str_radix(&caps[1], 16).ok()?;
+            Some(RawAddrCode::ZeroPageX(value))
+        } else if let Some(caps) = RE_ZERO_PAGE_Y.captures(s) {
+            let value = u8::from_str_radix(&caps[1], 16).ok()?;
+            Some(RawAddrCode::ZeroPageY(value))
+        } else if let Some(caps) = RE_ZERO_PAGE.captures(s) {
+            let value = u8::from_str_radix(&caps[1], 16).ok()?;
+            Some(RawAddrCode::ZeroPage(value))
+        } else if let Some(caps) = RE_ABSOLUTE_X.captures(s) {
+            let value = u16::from_str_radix(&caps[1], 16).ok()?;
+            Some(RawAddrCode::AbsoluteX(value))
+        } else if let Some(caps) = RE_ABSOLUTE_Y.captures(s) {
+            let value = u16::from_str_radix(&caps[1], 16).ok()?;
+            Some(RawAddrCode::AbsoluteY(value))
+        } else if let Some(caps) = RE_ABSOLUTE.captures(s) {
+            let value = u16::from_str_radix(&caps[1], 16).ok()?;
+            Some(RawAddrCode::Absolute(value))
+        } else if let Some(caps) = RE_INDIRECT.captures(s) {
+            let value = u16::from_str_radix(&caps[1], 16).ok()?;
+            Some(RawAddrCode::Indirect(value))
+        } else if RE_ACCUMULATOR.is_match(s) {
+            Some(RawAddrCode::Accumulator)
+        } else if RE_IMPLICIT.is_match(s) {
+            Some(RawAddrCode::Implicit)
+        } else {
+            None
+        }
+    }
 }
 
 /// Addressing modes
@@ -36,8 +151,8 @@ pub enum AddrMode {
     IndirectY(AddrCode),
     /// Relative
     Relative(AddrCode),
-    /// Implied
-    Implied(AddrCode),
+    /// Implicit
+    Implicit(AddrCode),
 }
 
 impl Display for AddrMode {
@@ -55,7 +170,7 @@ impl Display for AddrMode {
             AddrMode::IndirectX(_) => write!(f, "IndirectX"),
             AddrMode::IndirectY(_) => write!(f, "IndirectY"),
             AddrMode::Relative(_) => write!(f, "Relative"),
-            AddrMode::Implied(_) => write!(f, "Implied"),
+            AddrMode::Implicit(_) => write!(f, "Implicit"),
         }
     }
 }
@@ -251,7 +366,7 @@ impl Instructions {
     /// use rusty_6502::asm;
     /// let opcode = 0x00;
     /// let instruction = asm::Instructions::resolve(opcode);
-    /// assert_eq!(instruction, asm::Instructions::BRK(asm::AddrMode::Implied(asm::AddrCode {
+    /// assert_eq!(instruction, asm::Instructions::BRK(asm::AddrMode::Implicit(asm::AddrCode {
     ///     cycles: 7,
     ///     opcode: 0x00,
     /// })));
@@ -374,7 +489,7 @@ impl Instructions {
                 cycles: 2,
                 opcode: 0x10,
             })),
-            0x00 => Instructions::BRK(AddrMode::Implied(AddrCode {
+            0x00 => Instructions::BRK(AddrMode::Implicit(AddrCode {
                 cycles: 7,
                 opcode: 0x00,
             })),
@@ -386,19 +501,19 @@ impl Instructions {
                 cycles: 2,
                 opcode: 0x70,
             })),
-            0x18 => Instructions::CLC(AddrMode::Implied(AddrCode {
+            0x18 => Instructions::CLC(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0x18,
             })),
-            0xD8 => Instructions::CLD(AddrMode::Implied(AddrCode {
+            0xD8 => Instructions::CLD(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0xD8,
             })),
-            0x58 => Instructions::CLI(AddrMode::Implied(AddrCode {
+            0x58 => Instructions::CLI(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0x58,
             })),
-            0xB8 => Instructions::CLV(AddrMode::Implied(AddrCode {
+            0xB8 => Instructions::CLV(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0xB8,
             })),
@@ -474,11 +589,11 @@ impl Instructions {
                 cycles: 7,
                 opcode: 0xDE,
             })),
-            0xCA => Instructions::DEX(AddrMode::Implied(AddrCode {
+            0xCA => Instructions::DEX(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0xCA,
             })),
-            0x88 => Instructions::DEY(AddrMode::Implied(AddrCode {
+            0x88 => Instructions::DEY(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0x88,
             })),
@@ -530,11 +645,11 @@ impl Instructions {
                 cycles: 7,
                 opcode: 0xFE,
             })),
-            0xE8 => Instructions::INX(AddrMode::Implied(AddrCode {
+            0xE8 => Instructions::INX(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0xE8,
             })),
-            0xC8 => Instructions::INY(AddrMode::Implied(AddrCode {
+            0xC8 => Instructions::INY(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0xC8,
             })),
@@ -642,7 +757,7 @@ impl Instructions {
                 cycles: 7,
                 opcode: 0x5E,
             })),
-            0xEA => Instructions::NOP(AddrMode::Implied(AddrCode {
+            0xEA => Instructions::NOP(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0xEA,
             })),
@@ -678,19 +793,19 @@ impl Instructions {
                 cycles: 5,
                 opcode: 0x11,
             })),
-            0x48 => Instructions::PHA(AddrMode::Implied(AddrCode {
+            0x48 => Instructions::PHA(AddrMode::Implicit(AddrCode {
                 cycles: 3,
                 opcode: 0x48,
             })),
-            0x08 => Instructions::PHP(AddrMode::Implied(AddrCode {
+            0x08 => Instructions::PHP(AddrMode::Implicit(AddrCode {
                 cycles: 3,
                 opcode: 0x08,
             })),
-            0x68 => Instructions::PLA(AddrMode::Implied(AddrCode {
+            0x68 => Instructions::PLA(AddrMode::Implicit(AddrCode {
                 cycles: 4,
                 opcode: 0x68,
             })),
-            0x28 => Instructions::PLP(AddrMode::Implied(AddrCode {
+            0x28 => Instructions::PLP(AddrMode::Implicit(AddrCode {
                 cycles: 4,
                 opcode: 0x28,
             })),
@@ -734,11 +849,11 @@ impl Instructions {
                 cycles: 7,
                 opcode: 0x7E,
             })),
-            0x40 => Instructions::RTI(AddrMode::Implied(AddrCode {
+            0x40 => Instructions::RTI(AddrMode::Implicit(AddrCode {
                 cycles: 6,
                 opcode: 0x40,
             })),
-            0x60 => Instructions::RTS(AddrMode::Implied(AddrCode {
+            0x60 => Instructions::RTS(AddrMode::Implicit(AddrCode {
                 cycles: 6,
                 opcode: 0x60,
             })),
@@ -774,15 +889,15 @@ impl Instructions {
                 cycles: 5,
                 opcode: 0xF1,
             })),
-            0x38 => Instructions::SEC(AddrMode::Implied(AddrCode {
+            0x38 => Instructions::SEC(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0x38,
             })),
-            0xF8 => Instructions::SED(AddrMode::Implied(AddrCode {
+            0xF8 => Instructions::SED(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0xF8,
             })),
-            0x78 => Instructions::SEI(AddrMode::Implied(AddrCode {
+            0x78 => Instructions::SEI(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0x78,
             })),
@@ -838,38 +953,368 @@ impl Instructions {
                 cycles: 4,
                 opcode: 0x8C,
             })),
-            0xAA => Instructions::TAX(AddrMode::Implied(AddrCode {
+            0xAA => Instructions::TAX(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0xAA,
             })),
-            0xA8 => Instructions::TAY(AddrMode::Implied(AddrCode {
+            0xA8 => Instructions::TAY(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0xA8,
             })),
-            0xBA => Instructions::TSX(AddrMode::Implied(AddrCode {
+            0xBA => Instructions::TSX(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0xBA,
             })),
-            0x8A => Instructions::TXA(AddrMode::Implied(AddrCode {
+            0x8A => Instructions::TXA(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0x8A,
             })),
-            0x9A => Instructions::TXS(AddrMode::Implied(AddrCode {
+            0x9A => Instructions::TXS(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0x9A,
             })),
-            0x98 => Instructions::TYA(AddrMode::Implied(AddrCode {
+            0x98 => Instructions::TYA(AddrMode::Implicit(AddrCode {
                 cycles: 2,
                 opcode: 0x98,
             })),
             _ => panic!("Wrong opcode: {}", opcode),
         }
     }
-}
 
-pub enum AssemblerError {
-    NestedScopesAreNotAllowed,
-    InvalidScopeName,
+    pub fn resolve_string(opcode: &str) -> Option<Vec<u8>> {
+        let parts = opcode.split(" ").collect::<Vec<_>>();
+        let addr_mode = RawAddrCode::parse_assembly_string(parts[1..].join(" ").as_str());
+
+        if addr_mode.is_none() {
+            return None;
+        }
+        let addr_mode = addr_mode.unwrap();
+
+        let code = match parts[0] {
+            "ADC" => match addr_mode {
+                RawAddrCode::Immediate(p) => vec![0x69, p],
+                RawAddrCode::ZeroPage(p) => vec![0x65, p],
+                RawAddrCode::ZeroPageX(p) => vec![0x75, p],
+                RawAddrCode::Absolute(p) => vec![0x6D, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteX(p) => vec![0x7D, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteY(p) => vec![0x79, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::IndirectX(p) => vec![0x61, p],
+                RawAddrCode::IndirectY(p) => vec![0x71, p],
+                _ => panic!("Invalid addressing mode for ADC"),
+            },
+            "AND" => match addr_mode {
+                RawAddrCode::Immediate(p) => vec![0x29, p],
+                RawAddrCode::ZeroPage(p) => vec![0x25, p],
+                RawAddrCode::ZeroPageX(p) => vec![0x35, p],
+                RawAddrCode::Absolute(p) => vec![0x2D, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteX(p) => vec![0x3D, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteY(p) => vec![0x39, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::IndirectX(p) => vec![0x21, p],
+                RawAddrCode::IndirectY(p) => vec![0x31, p],
+                _ => panic!("Invalid addressing mode for AND"),
+            },
+            "ASL" => match addr_mode {
+                RawAddrCode::AbsoluteY(p) => vec![0x0A, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::ZeroPage(p) => vec![0x06, p],
+                RawAddrCode::ZeroPageX(p) => vec![0x16, p],
+                RawAddrCode::Absolute(p) => vec![0x0E, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteX(p) => vec![0x1E, (p & 0xFF) as u8, (p >> 8) as u8],
+                _ => panic!("Invalid addressing mode for ASL"),
+            },
+            "BCC" => match addr_mode {
+                RawAddrCode::Relative(p) => vec![0x90, p],
+                _ => panic!("Invalid addressing mode for BCC"),
+            },
+            "BCS" => match addr_mode {
+                RawAddrCode::Relative(p) => vec![0xB0, p],
+                _ => panic!("Invalid addressing mode for BCS"),
+            },
+            "BEQ" => match addr_mode {
+                RawAddrCode::Relative(p) => vec![0xF0, p],
+                _ => panic!("Invalid addressing mode for BEQ"),
+            },
+            "BIT" => match addr_mode {
+                RawAddrCode::ZeroPage(p) => vec![0x24, p],
+                RawAddrCode::Absolute(p) => vec![0x2C, (p & 0xFF) as u8, (p >> 8) as u8],
+                _ => panic!("Invalid addressing mode for BIT"),
+            },
+            "BMI" => match addr_mode {
+                RawAddrCode::Relative(p) => vec![0x30, p],
+                _ => panic!("Invalid addressing mode for BMI"),
+            },
+            "BNE" => match addr_mode {
+                RawAddrCode::Relative(p) => vec![0xD0, p],
+                _ => panic!("Invalid addressing mode for BNE"),
+            },
+            "BPL" => match addr_mode {
+                RawAddrCode::Relative(p) => vec![0x10, p],
+                _ => panic!("Invalid addressing mode for BPL"),
+            },
+            "BRK" => match addr_mode {
+                RawAddrCode::Implicit => vec![0x00],
+                _ => panic!("Invalid addressing mode for BRK"),
+            },
+            "BVC" => match addr_mode {
+                RawAddrCode::Relative(p) => vec![0x50, p],
+                _ => panic!("Invalid addressing mode for BVC"),
+            },
+            "BVS" => match addr_mode {
+                RawAddrCode::Relative(p) => vec![0x70, p],
+                _ => panic!("Invalid addressing mode for BVS"),
+            },
+            "CLC" => match addr_mode {
+                RawAddrCode::Implicit => vec![0x18],
+                _ => panic!("Invalid addressing mode for CLC"),
+            },
+            "CLD" => match addr_mode {
+                RawAddrCode::Implicit => vec![0xD8],
+                _ => panic!("Invalid addressing mode for CLD"),
+            },
+            "CLI" => match addr_mode {
+                RawAddrCode::Implicit => vec![0x58],
+                _ => panic!("Invalid addressing mode for CLI"),
+            },
+            "CLV" => match addr_mode {
+                RawAddrCode::Implicit => vec![0xB8],
+                _ => panic!("Invalid addressing mode for CLV"),
+            },
+            "CMP" => match addr_mode {
+                RawAddrCode::Immediate(p) => vec![0xC9, p],
+                RawAddrCode::ZeroPage(p) => vec![0xC5, p],
+                RawAddrCode::ZeroPageX(p) => vec![0xD5, p],
+                RawAddrCode::Absolute(p) => vec![0xCD, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteX(p) => vec![0xDD, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteY(p) => vec![0xD9, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::IndirectX(p) => vec![0xC1, p],
+                RawAddrCode::IndirectY(p) => vec![0xD1, p],
+                _ => panic!("Invalid addressing mode for CMP"),
+            },
+            "CPX" => match addr_mode {
+                RawAddrCode::Immediate(p) => vec![0xE0, p],
+                RawAddrCode::ZeroPage(p) => vec![0xE4, p],
+                RawAddrCode::Absolute(p) => vec![0xEC, (p & 0xFF) as u8, (p >> 8) as u8],
+                _ => panic!("Invalid addressing mode for CPX"),
+            },
+            "CPY" => match addr_mode {
+                RawAddrCode::Immediate(p) => vec![0xC0, p],
+                RawAddrCode::ZeroPage(p) => vec![0xC4, p],
+                RawAddrCode::Absolute(p) => vec![0xCC, (p & 0xFF) as u8, (p >> 8) as u8],
+                _ => panic!("Invalid addressing mode for CPY"),
+            },
+            "DEC" => match addr_mode {
+                RawAddrCode::ZeroPage(p) => vec![0xC6, p],
+                RawAddrCode::ZeroPageX(p) => vec![0xD6, p],
+                RawAddrCode::Absolute(p) => vec![0xCE, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteX(p) => vec![0xDE, (p & 0xFF) as u8, (p >> 8) as u8],
+                _ => panic!("Invalid addressing mode for DEC"),
+            },
+            "DEX" => match addr_mode {
+                RawAddrCode::Implicit => vec![0xCA],
+                _ => panic!("Invalid addressing mode for DEX"),
+            },
+            "DEY" => match addr_mode {
+                RawAddrCode::Implicit => vec![0x88],
+                _ => panic!("Invalid addressing mode for DEY"),
+            },
+            "EOR" => match addr_mode {
+                RawAddrCode::Immediate(p) => vec![0x49, p],
+                RawAddrCode::ZeroPage(p) => vec![0x45, p],
+                RawAddrCode::ZeroPageX(p) => vec![0x55, p],
+                RawAddrCode::Absolute(p) => vec![0x4D, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteX(p) => vec![0x5D, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteY(p) => vec![0x59, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::IndirectX(p) => vec![0x41, p],
+                RawAddrCode::IndirectY(p) => vec![0x51, p],
+                _ => panic!("Invalid addressing mode for EOR"),
+            },
+            "INC" => match addr_mode {
+                RawAddrCode::ZeroPage(p) => vec![0xE6, p],
+                RawAddrCode::ZeroPageX(p) => vec![0xF6, p],
+                RawAddrCode::Absolute(p) => vec![0xEE, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteX(p) => vec![0xFE, (p & 0xFF) as u8, (p >> 8) as u8],
+                _ => panic!("Invalid addressing mode for INC"),
+            },
+            "INX" => match addr_mode {
+                RawAddrCode::Implicit => vec![0xE8],
+                _ => panic!("Invalid addressing mode for INX"),
+            },
+            "INY" => match addr_mode {
+                RawAddrCode::Implicit => vec![0xC8],
+                _ => panic!("Invalid addressing mode for INY"),
+            },
+            "JMP" => match addr_mode {
+                RawAddrCode::Absolute(p) => vec![0x4C, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::Indirect(p) => vec![0x6C, (p & 0xFF) as u8, (p >> 8) as u8],
+                _ => panic!("Invalid addressing mode for JMP"),
+            },
+            "JSR" => match addr_mode {
+                RawAddrCode::Absolute(p) => vec![0x20, (p & 0xFF) as u8, (p >> 8) as u8],
+                _ => panic!("Invalid addressing mode for JSR"),
+            },
+            "LDA" => match addr_mode {
+                RawAddrCode::Immediate(p) => vec![0xA9, p],
+                RawAddrCode::ZeroPage(p) => vec![0xA5, p],
+                RawAddrCode::ZeroPageX(p) => vec![0xB5, p],
+                RawAddrCode::Absolute(p) => vec![0xAD, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteX(p) => vec![0xBD, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteY(p) => vec![0xB9, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::IndirectX(p) => vec![0xA1, p],
+                RawAddrCode::IndirectY(p) => vec![0xB1, p],
+                _ => panic!("Invalid addressing mode for LDA"),
+            },
+            "LDX" => match addr_mode {
+                RawAddrCode::Immediate(p) => vec![0xA2, p],
+                RawAddrCode::ZeroPage(p) => vec![0xA6, p],
+                RawAddrCode::ZeroPageY(p) => vec![0xB6, p],
+                RawAddrCode::Absolute(p) => vec![0xAE, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteY(p) => vec![0xBE, (p & 0xFF) as u8, (p >> 8) as u8],
+                _ => panic!("Invalid addressing mode for LDX"),
+            },
+            "LDY" => match addr_mode {
+                RawAddrCode::Immediate(p) => vec![0xA0, p],
+                RawAddrCode::ZeroPage(p) => vec![0xA4, p],
+                RawAddrCode::ZeroPageX(p) => vec![0xB4, p],
+                RawAddrCode::Absolute(p) => vec![0xAC, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteX(p) => vec![0xBC, (p & 0xFF) as u8, (p >> 8) as u8],
+                _ => panic!("Invalid addressing mode for LDY"),
+            },
+            "LSR" => match addr_mode {
+                RawAddrCode::AbsoluteY(p) => vec![0x4A, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::ZeroPage(p) => vec![0x46, p],
+                RawAddrCode::ZeroPageX(p) => vec![0x56, p],
+                RawAddrCode::Absolute(p) => vec![0x4E, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteX(p) => vec![0x5E, (p & 0xFF) as u8, (p >> 8) as u8],
+                _ => panic!("Invalid addressing mode for LSR"),
+            },
+            "NOP" => match addr_mode {
+                RawAddrCode::Implicit => vec![0xEA],
+                _ => panic!("Invalid addressing mode for NOP"),
+            },
+            "ORA" => match addr_mode {
+                RawAddrCode::Immediate(p) => vec![0x09, p],
+                RawAddrCode::ZeroPage(p) => vec![0x05, p],
+                RawAddrCode::ZeroPageX(p) => vec![0x15, p],
+                RawAddrCode::Absolute(p) => vec![0x0D, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteX(p) => vec![0x1D, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteY(p) => vec![0x19, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::IndirectX(p) => vec![0x01, p],
+                RawAddrCode::IndirectY(p) => vec![0x11, p],
+                _ => panic!("Invalid addressing mode for ORA"),
+            },
+            "PHA" => match addr_mode {
+                RawAddrCode::Implicit => vec![0x48],
+                _ => panic!("Invalid addressing mode for PHA"),
+            },
+            "PHP" => match addr_mode {
+                RawAddrCode::Implicit => vec![0x08],
+                _ => panic!("Invalid addressing mode for PHP"),
+            },
+            "PLA" => match addr_mode {
+                RawAddrCode::Implicit => vec![0x68],
+                _ => panic!("Invalid addressing mode for PLA"),
+            },
+            "PLP" => match addr_mode {
+                RawAddrCode::Implicit => vec![0x28],
+                _ => panic!("Invalid addressing mode for PLP"),
+            },
+            "ROL" => match addr_mode {
+                RawAddrCode::AbsoluteY(p) => vec![0x2A, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::ZeroPage(p) => vec![0x26, p],
+                RawAddrCode::ZeroPageX(p) => vec![0x36, p],
+                RawAddrCode::Absolute(p) => vec![0x2E, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteX(p) => vec![0x3E, (p & 0xFF) as u8, (p >> 8) as u8],
+                _ => panic!("Invalid addressing mode for ROL"),
+            },
+            "ROR" => match addr_mode {
+                RawAddrCode::AbsoluteY(p) => vec![0x6A, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::ZeroPage(p) => vec![0x66, p],
+                RawAddrCode::ZeroPageX(p) => vec![0x76, p],
+                RawAddrCode::Absolute(p) => vec![0x6E, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteX(p) => vec![0x7E, (p & 0xFF) as u8, (p >> 8) as u8],
+                _ => panic!("Invalid addressing mode for ROR"),
+            },
+            "RTI" => match addr_mode {
+                RawAddrCode::Implicit => vec![0x40],
+                _ => panic!("Invalid addressing mode for RTI"),
+            },
+            "RTS" => match addr_mode {
+                RawAddrCode::Implicit => vec![0x60],
+                _ => panic!("Invalid addressing mode for RTS"),
+            },
+            "SBC" => match addr_mode {
+                RawAddrCode::Immediate(p) => vec![0xE9, p],
+                RawAddrCode::ZeroPage(p) => vec![0xE5, p],
+                RawAddrCode::ZeroPageX(p) => vec![0xF5, p],
+                RawAddrCode::Absolute(p) => vec![0xED, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteX(p) => vec![0xFD, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteY(p) => vec![0xF9, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::IndirectX(p) => vec![0xE1, p],
+                RawAddrCode::IndirectY(p) => vec![0xF1, p],
+                _ => panic!("Invalid addressing mode for SBC"),
+            },
+            "SEC" => match addr_mode {
+                RawAddrCode::Implicit => vec![0x38],
+                _ => panic!("Invalid addressing mode for SEC"),
+            },
+            "SED" => match addr_mode {
+                RawAddrCode::Implicit => vec![0xF8],
+                _ => panic!("Invalid addressing mode for SED"),
+            },
+            "SEI" => match addr_mode {
+                RawAddrCode::Implicit => vec![0x78],
+                _ => panic!("Invalid addressing mode for SEI"),
+            },
+            "STA" => match addr_mode {
+                RawAddrCode::ZeroPage(p) => vec![0x85, p],
+                RawAddrCode::ZeroPageX(p) => vec![0x95, p],
+                RawAddrCode::Absolute(p) => vec![0x8D, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteX(p) => vec![0x9D, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::AbsoluteY(p) => vec![0x99, (p & 0xFF) as u8, (p >> 8) as u8],
+                RawAddrCode::IndirectX(p) => vec![0x81, p],
+                RawAddrCode::IndirectY(p) => vec![0x91, p],
+                _ => panic!("Invalid addressing mode for STA"),
+            },
+            "STX" => match addr_mode {
+                RawAddrCode::ZeroPage(p) => vec![0x86, p],
+                RawAddrCode::ZeroPageY(p) => vec![0x96, p],
+                RawAddrCode::Absolute(p) => vec![0x8E, (p & 0xFF) as u8, (p >> 8) as u8],
+                _ => panic!("Invalid addressing mode for STX"),
+            },
+            "STY" => match addr_mode {
+                RawAddrCode::ZeroPage(p) => vec![0x84, p],
+                RawAddrCode::ZeroPageX(p) => vec![0x94, p],
+                RawAddrCode::Absolute(p) => vec![0x8C, (p & 0xFF) as u8, (p >> 8) as u8],
+                _ => panic!("Invalid addressing mode for STY"),
+            },
+            "TAX" => match addr_mode {
+                RawAddrCode::Implicit => vec![0xAA],
+                _ => panic!("Invalid addressing mode for TAX"),
+            },
+            "TAY" => match addr_mode {
+                RawAddrCode::Implicit => vec![0xA8],
+                _ => panic!("Invalid addressing mode for TAY"),
+            },
+            "TSX" => match addr_mode {
+                RawAddrCode::Implicit => vec![0xBA],
+                _ => panic!("Invalid addressing mode for TSX"),
+            },
+            "TXA" => match addr_mode {
+                RawAddrCode::Implicit => vec![0x8A],
+                _ => panic!("Invalid addressing mode for TXA"),
+            },
+            "TXS" => match addr_mode {
+                RawAddrCode::Implicit => vec![0x9A],
+                _ => panic!("Invalid addressing mode for TXS"),
+            },
+            "TYA" => match addr_mode {
+                RawAddrCode::Implicit => vec![0x98],
+                _ => panic!("Invalid addressing mode for TYA"),
+            },
+            _ => panic!("Invalid opcode: {}", opcode),
+        };
+
+        Some(code)
+    }
 }
 
 /// A program structure
@@ -929,54 +1374,5 @@ impl Program {
                 .push(u8::from_str_radix(instruction, 16).unwrap())
         }
         self
-    }
-
-    /// Parse the program from given string
-    pub fn parse_assembly_string(code: &str) -> Result<(), AssemblerError> {
-        let mut scope = "";
-        let mut in_scope = true;
-
-        //split lines with eol
-        let lines = code.lines();
-
-        println!("lines: {:?}", lines.clone().collect::<Vec<_>>());
-
-
-        for line in lines {
-
-            println!("line: {:?}", line);
-
-            if line.starts_with("    ") || line.starts_with("\t") {
-                todo!("#: {:?}", line);
-            } else {
-                //Scope line
-                if line.contains(":") {
-                    if in_scope {
-                        return Err(AssemblerError::NestedScopesAreNotAllowed);
-                    } else {
-                        let mut scope_parts = line.trim().split(":");
-
-                        if scope_parts.clone().count() > 2 {
-                            return Err(AssemblerError::InvalidScopeName);
-                        }
-
-                        let scope_text = scope_parts.next().unwrap();
-
-                        let allowed_scope_chars =
-                            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
-
-                        if scope_text.chars().all(|c| allowed_scope_chars.contains(c)) {
-                            scope = &scope_text;
-                            in_scope = true;
-                        } else {
-                            return Err(AssemblerError::InvalidScopeName);
-                        }
-                    }
-                }
-            }
-        }
-
-        panic!("Not implemented");
-        Ok(())
     }
 }
