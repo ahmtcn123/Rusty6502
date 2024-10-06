@@ -77,6 +77,9 @@ impl RawAddrCode {
             // Indirect Addressing Mode: ($1234)
             static ref RE_INDIRECT: Regex = Regex::new(r"^\(\s*\$\s*([0-9A-Fa-f]{3,4})\s*\)$").unwrap();
 
+            // Relative Addressing Mode: $1234
+            static ref RE_RELATIVE: Regex = Regex::new(r"^\$\s*([0-9A-Fa-f]{1,2})$").unwrap();
+
             // Accumulator Addressing Mode: A
             static ref RE_ACCUMULATOR: Regex = Regex::new(r"^A$").unwrap();
 
@@ -114,6 +117,9 @@ impl RawAddrCode {
         } else if let Some(caps) = RE_INDIRECT.captures(s) {
             let value = u16::from_str_radix(&caps[1], 16).ok()?;
             Some(RawAddrCode::Indirect(value))
+        } else if let Some(caps) = RE_RELATIVE.captures(s) {
+            let value = u8::from_str_radix(&caps[1], 16).ok()?;
+            Some(RawAddrCode::Relative(value))
         } else if RE_ACCUMULATOR.is_match(s) {
             Some(RawAddrCode::Accumulator)
         } else if RE_IMPLICIT.is_match(s) {

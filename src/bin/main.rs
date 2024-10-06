@@ -2,7 +2,7 @@ use rusty_6502::{
     asm::Program,
     cpu::{self, Step},
     debugger, mem,
-    parser::parse_assembly_string,
+    parser::{byte_code_parse, tokenize_assembly_string},
 };
 use std::{
     fs::{self, File},
@@ -10,24 +10,21 @@ use std::{
 };
 
 fn main() {
-    parse_assembly_string(
-        r#"
-    .org 600
-    LDX #$00            
-    LDA #$00            
-loop_start:
-    INX                 
-    STA $01             
-    CPX #$09           
-    BNE loop_start      
-    BRK                 
+/*     let mut file = File::open("./a.asm").unwrap();
 
-    "#,
-    )
-    .unwrap();
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).unwrap();
 
-    panic!();
-    let mut mem = mem::MEM::new();
+    let compilation_result = tokenize_assembly_string(&contents).unwrap();
+
+    let byte_code = byte_code_parse(compilation_result.clone()).unwrap();
+
+    panic!(
+        "Compilation result: {:?}, byte_code: {:#?}",
+        compilation_result, byte_code
+    ); */
+
+let mut mem = mem::MEM::new();
     let mut cpu = cpu::CPU::new(&|e| match e {
         debugger::MessageType::LineExecuted(ins, cocyl) => {
             println!(
@@ -43,18 +40,10 @@ loop_start:
     });
     cpu.step = Step::Supervised;
 
-    cpu.reset(600, &mut mem);
+    cpu.reset(600, &mut mem); */
 
-    /*  Program::new(600)
-        .parse_assembly_string(
-            r#"
-    LDX #$00
-    LDA #$09
-    STA $01
-    BRK
-        "#,
-        )
-        .fill_ram(&mut mem); */
+      Program::new(600).get_from_str("code")
+        .fill_ram(&mut mem); 
 
     let (cycles, end) = cpu.execute_continuous(&mut mem);
     println!("\nA: {:02x} X: {:02x} Y: {:02x}", cpu.A, cpu.X, cpu.Y);
@@ -84,7 +73,7 @@ loop_start:
     File::create("mem.dump")
         .unwrap()
         .write_all(&mem.data)
-        .unwrap();
+        .unwrap(); 
 }
 
 //let mut mem_viewer = mem_viewer::MemViewer::create_display(mem.data.len());
